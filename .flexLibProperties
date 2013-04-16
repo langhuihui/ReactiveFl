@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="true" useMultiPlatformConfig="false" version="3">
+  <includeClasses>
+    <classEntry path="reactivefl.RFL"/>
+    <classEntry path="reactivefl.core.AbstractObserver"/>
+    <classEntry path="reactivefl.core.AnonymousObservable"/>
+    <classEntry path="reactivefl.core.AnonymousObserver"/>
+    <classEntry path="reactivefl.core.CheckedObserver"/>
+    <classEntry path="reactivefl.core.Notification"/>
+    <classEntry path="reactivefl.core.Observable"/>
+    <classEntry path="reactivefl.core.Observer"/>
+    <classEntry path="reactivefl.i.IDisposable"/>
+    <classEntry path="reactivefl.i.IObservable"/>
+    <classEntry path="reactivefl.i.IObserver"/>
+    <classEntry path="reactivefl.concurrency.Scheduler"/>
+    <classEntry path="reactivefl.disposables.SingleAssignmentDisposable"/>
+    <classEntry path="reactivefl.disposables.CompositeDisposable"/>
+    <classEntry path="reactivefl.internals.Enumerable"/>
+    <classEntry path="reactivefl.internals.Enumerator"/>
+    <classEntry path="reactivefl.disposables.Disposable"/>
+    <classEntry path="reactivefl.disposables.SerialDisposable"/>
+    <classEntry path="reactivefl.concurrency.CurrentThreadScheduler"/>
+    <classEntry path="reactivefl.concurrency.ImmediateScheduler"/>
+    <classEntry path="reactivefl.concurrency.ScheduledItem"/>
+    <classEntry path="reactivefl.internals.PriorityQueue"/>
+    <classEntry path="reactivefl.core.AutoDetachObserver"/>
+    <classEntry path="reactivefl.disposables.RefCountDisposable"/>
+    <classEntry path="reactivefl.subjects.Subject"/>
+    <classEntry path="reactivefl.subjects.InnerSubscription"/>
+    <classEntry path="reactivefl.subjects.AnonymousSubject"/>
+    <classEntry path="reactivefl.core.ObservableUtil"/>
+    <classEntry path="reactivefl.argsOrArray"/>
+    <classEntry path="reactivefl.core.GroupedObservable"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>
