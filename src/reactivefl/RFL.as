@@ -1,5 +1,7 @@
 package reactivefl
 {
+	import reactivefl.concurrency.CurrentThreadScheduler;
+	import reactivefl.concurrency.ImmediateScheduler;
 	import reactivefl.core.AnonymousObservable;
 	import reactivefl.core.Observable;
 	import reactivefl.disposables.CompositeDisposable;
@@ -41,6 +43,14 @@ package reactivefl
 				a[i] = factory();
 			}
 			return a;
+		}
+		private static var _immediateScheduler:ImmediateScheduler;
+		public static function get immediateScheduler():ImmediateScheduler{
+			return _immediateScheduler||=new ImmediateScheduler();
+		}
+		private static var _currentThreadScheduler:CurrentThreadScheduler;
+		public static function get currentThreadScheduler():CurrentThreadScheduler{
+			return  _currentThreadScheduler||= new CurrentThreadScheduler();
 		}
 	}
 }

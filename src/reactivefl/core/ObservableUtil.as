@@ -1,5 +1,8 @@
 package reactivefl.core
 {
+	import flash.events.IEventDispatcher;
+	
+	import reactivefl.RFL;
 	import reactivefl.argsOrArray;
 	import reactivefl.concurrency.Scheduler;
 	import reactivefl.disposables.CompositeDisposable;
@@ -9,6 +12,8 @@ package reactivefl.core
 	import reactivefl.i.IDisposable;
 	import reactivefl.i.IObservable;
 	import reactivefl.i.IObserver;
+	import reactivefl.internals.Enumerable;
+	import reactivefl.internals.Enumerator;
 
 	public class ObservableUtil
 	{
@@ -16,7 +21,7 @@ package reactivefl.core
 		{
 		}
 		public static function throwException(exception:Error, scheduler:Scheduler = null):Observable {
-			scheduler ||= Scheduler.immediate;
+			scheduler ||= RFL.immediateScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				return scheduler.schedule(function ():void {
 					observer.onError(exception);
@@ -35,7 +40,7 @@ package reactivefl.core
 			});
 		}
 		public static function fromArray(array:Array, scheduler:Scheduler):Observable{
-			scheduler ||= Scheduler.currentThread;
+			scheduler ||= RFL.currentThreadScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var count:int = 0;
 				return scheduler.scheduleRecursive(function (self:Function):void {
@@ -49,11 +54,11 @@ package reactivefl.core
 			});
 		}
 		public static function repeat(value:*, repeatCount:int = -1, scheduler:Scheduler = null):Observable {
-			scheduler ||= Scheduler.currentThread;
+			scheduler ||= RFL.currentThreadScheduler;
 			return returnValue(value, scheduler).repeat(repeatCount);
 		}
 		public static function returnValue(value:*, scheduler:Scheduler):Observable {
-			scheduler ||= Scheduler.immediate;
+			scheduler ||= RFL.immediateScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				return scheduler.schedule(function ():void {
 					observer.onNext(value);
@@ -64,13 +69,13 @@ package reactivefl.core
 		public static function merge (...args):Observable {
 			var scheduler:Scheduler, sources:Array;
 			if (!args[0]) {
-				scheduler = Scheduler.immediate;
+				scheduler = RFL.immediateScheduler;
 				sources = args.slice(1);
 			} else if (args[0].now) {
 				scheduler = args[0];
 				sources = args.slice(1);
 			} else {
-				scheduler = Scheduler.immediate;
+				scheduler = RFL.immediateScheduler;
 				sources = args;
 			}
 			if (sources[0] is Array) {
@@ -82,7 +87,7 @@ package reactivefl.core
 			var sources:Array = argsOrArray(args);
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var pos:int = 0, subscription:SerialDisposable = new SerialDisposable(),
-				cancelable:IDisposable = Scheduler.immediate.scheduleRecursive(function (self:Function):void {
+				cancelable:IDisposable = RFL.immediateScheduler.scheduleRecursive(function (self:Function):void {
 					var current:IObservable, d:SingleAssignmentDisposable;
 					if (pos < sources.length) {
 						current = sources[pos++];
@@ -97,7 +102,7 @@ package reactivefl.core
 			});
 		}
 		public static function empty(scheduler:Scheduler = null) :Observable{
-			scheduler ||= Scheduler.immediate;
+			scheduler ||= RFL.immediateScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				return scheduler.schedule(observer.onCompleted);
 			});
@@ -114,12 +119,44 @@ package reactivefl.core
 				acc = acc.amb(items[i]);
 			}
 			return acc;
-		};
+		}
 		
-		public static function concat(items:Array):Observable
+		public static function concat(...args):Observable
 		{
-			// TODO Auto Generated method stub
-			return null;
+			return Enumerable.forEach(argsOrArray(args)).concat();
+		}
+		
+		public static function ifThen(condition:Function, thenSource:Observable, elseSourceOrScheduler:Object = null):Observable {
+			return defer(function () :Observable{
+				elseSourceOrScheduler ||= empty();
+				if (elseSourceOrScheduler is Scheduler) {
+					elseSourceOrScheduler = empty(elseSourceOrScheduler as Scheduler);
+				}
+				return condition() ? thenSource : elseSourceOrScheduler as Observable;
+			});
+		}
+		public static function forIn(sources:Array, resultSelector:Function = null):Observable{
+			return Enumerable.forEach(sources, resultSelector).concat();
+		}
+		public static function whileDo(condition:Function, source:*):Observable {
+			return new Enumerable(function ():Enumerator {
+				var current:*;
+				return Enumerator.create(function ():Boolean {
+					if (condition()) {
+						current = source;
+						return true;
+					}
+					return false;
+				}, function () :*{ return current; });
+			}).concat();
+		}
+		public static function fromEvent(source:IEventDispatcher,eventName:String,useCapture:Boolean = false):Observable{
+			return new AnonymousObservable(function(observer:IObserver):IDisposable{
+				source.addEventListener(eventName,observer.onNext,useCapture);
+				return Disposable.create(function():void{
+					source.removeEventListener(eventName,observer.onNext,useCapture);
+				});
+			});
 		}
 	}
 }

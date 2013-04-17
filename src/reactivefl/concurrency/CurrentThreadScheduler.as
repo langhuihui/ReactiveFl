@@ -6,10 +6,10 @@ package reactivefl.concurrency
 	{
 		private var trampoline:Trampoline;
 		public function get scheduleRequired():Boolean{
-			return trampoline.queue == null;
+			return trampoline == null || trampoline.queue == null;
 		}
 		public function ensureTrampoline(action:Function):IDisposable{
-			if (trampoline == null || trampoline.queue == null) {
+			if (scheduleRequired) {
 				return this.schedule(action);
 			} else {
 				return action();
@@ -22,7 +22,7 @@ package reactivefl.concurrency
 		override protected function scheduleRelative(state:*, dueTime:Number, action:Function):IDisposable {
 			var dt:Number = this.now() + Scheduler.normalize(dueTime),
 				si:ScheduledItem = new ScheduledItem(this, state, action, dt);
-			if (trampoline == null || trampoline.queue == null) {
+			if (scheduleRequired) {
 				trampoline = new Trampoline();
 				try {
 					trampoline.queue.enqueue(si);

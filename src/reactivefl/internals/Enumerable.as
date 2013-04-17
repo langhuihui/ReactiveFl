@@ -54,7 +54,7 @@ package reactivefl.internals
 			var sources:Enumerable = this;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var e:Enumerator = sources.getEnumerator(), isDisposed:Boolean = false, subscription:SerialDisposable = new SerialDisposable();
-				var cancelable:IDisposable = Scheduler.immediate.scheduleRecursive(function (self:Function) :void{
+				var cancelable:IDisposable = RFL.immediateScheduler.scheduleRecursive(function (self:Function) :void{
 					var current:*, ex:Error, hasNext:Boolean = false;
 					if (!isDisposed) {
 						try {
@@ -100,7 +100,7 @@ package reactivefl.internals
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var e:Enumerator = sources.getEnumerator(), isDisposed:Boolean = false, lastException:Error;
 				var subscription:SerialDisposable = new SerialDisposable();
-				var cancelable:IDisposable = Scheduler.immediate.scheduleRecursive(function (self:Function):void {
+				var cancelable:IDisposable = RFL.immediateScheduler.scheduleRecursive(function (self:Function):void {
 					var current:*, ex:Error, hasNext:Boolean = false;
 					if (!isDisposed) {
 						try {

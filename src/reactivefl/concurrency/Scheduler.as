@@ -27,8 +27,6 @@ package reactivefl.concurrency
 			return null;
 		}
 		
-		public static var immediate:ImmediateScheduler = new ImmediateScheduler();
-		public static var currentThread:CurrentThreadScheduler = new CurrentThreadScheduler();
 		public static function  normalize  (timeSpan:Number):Number {
 			return timeSpan<0?0:timeSpan;
 		}

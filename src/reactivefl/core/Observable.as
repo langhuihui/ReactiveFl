@@ -24,7 +24,7 @@ package reactivefl.core
 		public function subscribe(observerOrOnNext:Object, onError:Function = null, onCompleted:Function = null):IDisposable
 		{
 			var subscriber:IObserver;
-			if(observerOrOnNext is Function && onError!=null && onCompleted!=null){
+			if(observerOrOnNext is Function){
 				subscriber = Observer.create(observerOrOnNext as Function, onError, onCompleted);
 			}else{
 				subscriber = observerOrOnNext as IObserver;
@@ -76,11 +76,12 @@ package reactivefl.core
 		public function select(selector:Function):Observable{
 			var parent:Observable = this;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
-				var count:int = 0;
+//				var count:int = 0;
 				return parent.subscribe(function (value:*):void {
 					var result:*;
 					try {
-						result = selector(value, count++);
+//						result = selector(value, count++);
+						result = selector(value);
 					} catch (exception:Error) {
 						observer.onError(exception);
 						return;
@@ -406,7 +407,7 @@ package reactivefl.core
 			if (args.length > 0 && args[0] is Scheduler) {
 				scheduler = args.shift() as Scheduler;
 			} else {
-				scheduler = Scheduler.immediate;
+				scheduler = RFL.immediateScheduler;
 			}
 			return Enumerable.forEach([ObservableUtil.fromArray(args, scheduler), this]).concat();
 		}
@@ -607,7 +608,11 @@ package reactivefl.core
 				return new CompositeDisposable(leftSubscription, rightSubscription);
 			});
 		}
-		
+		public function concat(...args):Observable {
+			var items:Array = args;
+			items.unshift(this);
+			return ObservableUtil.concat.apply(this,items);
+		}
 		public function mergeObservable():Observable{
 			var sources:Observable = this;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
@@ -622,7 +627,7 @@ package reactivefl.core
 						observer.onNext(x);
 					}, observer.onError, function ():void {
 						group.remove(innerSubscription);
-						if (isStopped && group.length === 1) {
+						if (isStopped && group.length == 1) {
 							observer.onCompleted();
 						}
 					}));
@@ -713,7 +718,7 @@ package reactivefl.core
 			return new AnonymousObservable(function (observer:IObserver):IDisposable  {
 				return new CompositeDisposable(
 					source.subscribe(observer),
-					other.subscribe(observer.onCompleted, observer.onError, RFL.noop)
+					other.subscribe(function(x:*):void{observer.onCompleted();}, observer.onError, RFL.noop)
 				);
 			});
 		}
@@ -783,6 +788,10 @@ package reactivefl.core
 				}
 				return new CompositeDisposable(subscriptions);
 			});
-		};
+		}
+		//experimental
+		public function doWhile(condition:Function):Observable {
+			return ObservableUtil.concat([this, ObservableUtil.whileDo(condition, this)]);
+		}
 	}
 }

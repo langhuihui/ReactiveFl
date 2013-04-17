@@ -16,7 +16,7 @@ package reactivefl.concurrency
 			return action(this, state);
 		}
 		override protected function scheduleAbsolute(state:*, dueTime:Number, action:Function):IDisposable{
-			return scheduleWithRelativeAndState(state, dueTime - immediate.now(), action);
+			return scheduleWithRelativeAndState(state, dueTime - this.now(), action);
 		}
 	}
 }

@@ -57,7 +57,7 @@ package reactivefl.internals
 			this.heapify();
 		};
 		public function dequeue ():ScheduledItem {
-			return items.shift();
+			return items.shift().value;
 		};
 		public function enqueue (item:ScheduledItem):void {
 			items.push(new IndexedItem(count++, item));

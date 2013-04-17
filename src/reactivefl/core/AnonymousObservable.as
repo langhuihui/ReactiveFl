@@ -1,6 +1,6 @@
 package reactivefl.core
 {
-	import reactivefl.concurrency.Scheduler;
+	import reactivefl.RFL;
 	import reactivefl.i.IDisposable;
 	import reactivefl.i.IObserver;
 
@@ -9,9 +9,10 @@ package reactivefl.core
 		public function AnonymousObservable(subscribe:Function)
 		{
 			var s:Function = function (observer:IObserver):IDisposable {
+				
 				var autoDetachObserver:AutoDetachObserver = new AutoDetachObserver(observer);
-				if (Scheduler.currentThread.scheduleRequired) {
-					Scheduler.currentThread.schedule(function ():void {
+				if (RFL.currentThreadScheduler.scheduleRequired) {
+					RFL.currentThreadScheduler.schedule(function ():void {
 						try {
 							autoDetachObserver.disposable(subscribe(autoDetachObserver));
 						} catch (e:Error) {
