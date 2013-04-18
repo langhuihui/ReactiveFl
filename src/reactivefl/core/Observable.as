@@ -1,5 +1,7 @@
 package reactivefl.core
 {
+	import spark.core.IDisplayText;
+	
 	import reactivefl.RFL;
 	import reactivefl.concurrency.Scheduler;
 	import reactivefl.disposables.CompositeDisposable;
@@ -13,6 +15,7 @@ package reactivefl.core
 	import reactivefl.internals.Enumerable;
 	import reactivefl.subjects.Subject;
 	import reactivefl.vo.ValueWithInterval;
+	import reactivefl.vo.ValueWithTimestamp;
 	
 	public class Observable implements IObservable
 	{
@@ -92,13 +95,12 @@ package reactivefl.core
 				}, observer.onError, observer.onCompleted);
 			});
 		}
-		public function distinct(keySelector:Function, keySerializer:Function):Observable {
-			var source:Observable = this;
+		public function distinct(keySelector:Function = null, keySerializer:Function = null):Observable {
 			keySelector ||= RFL.identity;
 			keySerializer ||= RFL.defaultKeySerializer;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var hashSet:Object = {};
-				return source.subscribe(function (x:*):void {
+				return subscribe(function (x:*):void {
 					var key:*, serializedKey:String, otherKey:String, hasMatch:Boolean = false;
 					try {
 						key = keySelector(x);
@@ -120,12 +122,12 @@ package reactivefl.core
 				}, observer.onError, observer.onCompleted);
 			});
 		}
-		public function groupBy(keySelector:Function, elementSelector:Function, keySerializer:Function):Observable {
-			return groupByUntil(keySelector, elementSelector, function ():Observable {
+		public function groupBy(keySelector:Function, elementSelector:Function = null, keySerializer:Function = null):Observable {
+			return groupByUntil(keySelector, function ():Observable {
 				return ObservableUtil.never();
-			}, keySerializer);
+			}, elementSelector, keySerializer);
 		}
-		public function groupByUntil(keySelector:Function, elementSelector:Function, durationSelector:Function, keySerializer:Function):Observable {
+		public function groupByUntil(keySelector:Function, durationSelector:Function, elementSelector:Function = null, keySerializer:Function= null):Observable {
 			var source:Observable = this;
 			elementSelector ||= RFL.identity;
 			keySerializer ||= RFL.defaultKeySerializer;
@@ -386,7 +388,7 @@ package reactivefl.core
 				}, observer.onError, observer.onCompleted);
 			});
 		}
-		public function takeLast(count:int, scheduler:Scheduler):Observable {
+		public function takeLast(count:int, scheduler:Scheduler = null):Observable {
 			return this.takeLastBuffer(count).selectMany(function (xs:Array):Observable { return ObservableUtil.fromArray(xs, scheduler); });
 		}
 		public function takeLastBuffer(count:int):Observable {
@@ -413,7 +415,7 @@ package reactivefl.core
 			}
 			return Enumerable.forEach([ObservableUtil.fromArray(args, scheduler), this]).concat();
 		}
-		public function distinctUntilChanged(keySelector:Function, comparer:Function):Observable{
+		public function distinctUntilChanged(keySelector:Function = null, comparer:Function = null):Observable{
 			keySelector ||= RFL.identity;
 			comparer ||= RFL.defaultComparer;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
@@ -541,6 +543,26 @@ package reactivefl.core
 				return x.toArray();
 			}).where(function (x:Array):Boolean {
 				return x.length > 0;
+			});
+		}
+		public function dematerialize():Observable {
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				return subscribe(function (x:Notification):* {
+					return x.accept(observer);
+				}, observer.onError, observer.onCompleted);
+			});
+		}
+		public function materialize():Observable {
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				return subscribe(function (value:*):void {
+					observer.onNext(Notification.createOnNext(value));
+				}, function (exception:Error):void {
+					observer.onNext(Notification.createOnError(exception));
+					observer.onCompleted();
+				}, function ():void {
+					observer.onNext(Notification.createOnCompleted());
+					observer.onCompleted();;
+				});
 			});
 		}
 		//multiple
@@ -796,7 +818,7 @@ package reactivefl.core
 			return ObservableUtil.concat([this, ObservableUtil.whileDo(condition, this)]);
 		}
 		//time
-		public function throttle(dueTime:Number, scheduler:Scheduler):Observable {
+		public function throttle(dueTime:Number, scheduler:Scheduler = null):Observable {
 			scheduler ||= RFL.timeoutScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var cancelable:SerialDisposable = new SerialDisposable(), 
@@ -841,6 +863,162 @@ package reactivefl.core
 					last = now;
 					return new ValueWithInterval(x,span);
 				});
+			});
+		}
+		public function timeout(dueTime:Object, other:Observable = null, scheduler:Scheduler = null) :Observable{
+			var schedulerMethod:Function;
+			other || (other = ObservableUtil.throwException(new Error('Timeout')));
+			scheduler ||= RFL.timeoutScheduler;
+			if (dueTime is Date) {
+				dueTime = (dueTime as Date).getTime();
+				schedulerMethod = scheduler.scheduleWithAbsolute;
+			} else {
+				schedulerMethod = scheduler.scheduleWithRelative;
+			}
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				var createTimer:Function,
+				id:int = 0,
+				original:SingleAssignmentDisposable = new SingleAssignmentDisposable(),
+				subscription:SerialDisposable = new SerialDisposable(),
+				switched:Boolean = false,
+				timer:SerialDisposable = new SerialDisposable();
+				subscription.disposable(original);
+				createTimer = function ():void {
+					var myId:int = id;
+					timer.disposable(schedulerMethod(dueTime as Number, function ():void {
+						switched = id === myId;
+						//timerWins=switched
+						if (switched) {
+							subscription.disposable(other.subscribe(observer));
+						}
+					}));
+				};
+				createTimer();
+				original.disposable(subscribe(function (x:*):void {
+					//onNextWins = !switched
+					if (!switched) {
+						id++;
+						observer.onNext(x);
+						createTimer();
+					}
+				}, function (e:Error) :void{
+//					var onErrorWins = !switched;
+					if (!switched) {
+						id++;
+						observer.onError(e);
+					}
+				}, function ():void {
+//					var onCompletedWins:Boolean = !switched;
+					if (!switched) {
+						id++;
+						observer.onCompleted();
+					}
+				}));
+				return new CompositeDisposable(subscription, timer);
+			});
+		}
+		public function sample(intervalOrSampler:Object, scheduler:Scheduler = null) :Observable{
+			scheduler ||= RFL.timeoutScheduler;
+			var sampler:IObservable = intervalOrSampler is IObservable?intervalOrSampler as IObservable:ObservableUtil.interval(intervalOrSampler as Number, scheduler);
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				var atEnd:Boolean, value:Boolean, hasValue:Boolean;
+				function sampleSubscribe():void{
+					if (hasValue) {
+						hasValue = false;
+						observer.onNext(value);
+					}
+					if (atEnd) {
+						observer.onCompleted();
+					}
+				}
+				return new CompositeDisposable(
+					subscribe(function (newValue:*):void {
+						hasValue = true;
+						value = newValue;
+					}, observer.onError, function ():void  {
+						atEnd = true;
+					}),
+					sampler.subscribe(sampleSubscribe, observer.onError, sampleSubscribe)
+				)
+			});
+		}
+		private function observableDelayTimeSpan(dueTime:Number, scheduler:Scheduler):Observable {
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				var active:Boolean = false,
+				cancelable:SerialDisposable = new SerialDisposable(),
+				exception:Error = null,
+				q:Vector.<ValueWithTimestamp> = new <ValueWithTimestamp>[],
+				running:Boolean = false,
+				subscription:IDisplayText = materialize().timestamp(scheduler).subscribe(function (notification:ValueWithTimestamp):void {
+					var d:SingleAssignmentDisposable, shouldRun:Boolean;
+					if (notification.value.kind === 'E') {
+						q  = new <ValueWithTimestamp>[notification];
+						exception = notification.value.exception;
+						shouldRun = !running;
+					} else {
+						q.push(new ValueWithTimestamp( notification.value,  notification.timestamp + dueTime ));
+						shouldRun = !active;
+						active = true;
+					}
+					if (shouldRun) {
+						if (exception !== null) {
+							observer.onError(exception);
+						} else {
+							d = new SingleAssignmentDisposable();
+							cancelable.disposable(d);
+							d.disposable(scheduler.scheduleRecursiveWithRelative(dueTime, function (self:Function):void {
+								var e:Error, recurseDueTime:int, result:Notification, shouldRecurse:Boolean;
+								if (exception !== null) {
+									return;
+								}
+								running = true;
+								do {
+									result = null;
+									if (q.length > 0 && q[0].timestamp - scheduler.now() <= 0) {
+										result = q.shift().value;
+									}
+									if (result !== null) {
+										result.accept(observer);
+									}
+								} while (result !== null);
+								shouldRecurse = false;
+								recurseDueTime = 0;
+								if (q.length > 0) {
+									shouldRecurse = true;
+									recurseDueTime = Math.max(0, q[0].timestamp - scheduler.now());
+								} else {
+									active = false;
+								}
+								e = exception;
+								running = false;
+								if (e !== null) {
+									observer.onError(e);
+								} else if (shouldRecurse) {
+									self(recurseDueTime);
+								}
+							}));
+						}
+					}
+				});
+				return new CompositeDisposable(subscription, cancelable);
+			});
+		}
+		private function observableDelayDate(dueTime:Number, scheduler:Scheduler):Observable {
+			return ObservableUtil.defer(function ():Observable {
+				var timeSpan:Number = dueTime - scheduler.now();
+				return observableDelayTimeSpan(timeSpan, scheduler);
+			});
+		}
+		public function delay(dueTime:Object, scheduler:Scheduler = null):Observable {
+			scheduler ||= RFL.timeoutScheduler;
+			return dueTime is Date ?
+				observableDelayDate((dueTime as Date).getTime(), scheduler) :
+				observableDelayTimeSpan(dueTime as Number, scheduler);
+		}
+		public function timestamp(scheduler:Scheduler = null):Observable {
+			scheduler ||= RFL.timeoutScheduler;
+			return select(function (x:*) :ValueWithTimestamp{
+				return new ValueWithTimestamp(x,scheduler.now());
 			});
 		}
 	}
