@@ -1,6 +1,11 @@
 package reactivefl.core
 {
+	import flash.display.DisplayObject;
+	import flash.events.Event;
 	import flash.events.IEventDispatcher;
+	
+	import mx.binding.utils.BindingUtils;
+	import mx.binding.utils.ChangeWatcher;
 	
 	import reactivefl.RFL;
 	import reactivefl.argsOrArray;
@@ -71,8 +76,8 @@ package reactivefl.core
 			if (!args[0]) {
 				scheduler = RFL.immediateScheduler;
 				sources = args.slice(1);
-			} else if (args[0].now) {
-				scheduler = args[0];
+			} else if (args[0] is Scheduler) {
+				scheduler = args[0] as Scheduler;
 				sources = args.slice(1);
 			} else {
 				scheduler = RFL.immediateScheduler;
@@ -150,12 +155,98 @@ package reactivefl.core
 				}, function () :*{ return current; });
 			}).concat();
 		}
+		//time
+		private static function observableTimerDateAndPeriod(dueTime:Number, period:Number, scheduler:Scheduler):Observable {
+			var p:Number = Scheduler.normalize(period);
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				var count:Number = 0, d:Number = dueTime;
+				return scheduler.scheduleRecursiveWithAbsolute(d, function (self:Function):void {
+					var now:Number;
+					if (p > 0) {
+						now = scheduler.now();
+						d = d + p;
+						if (d <= now) {
+							d = now + p;
+						}
+					}
+					observer.onNext(count++);
+					self(d);
+				});
+			});
+		}
+		
+		private static function observableTimerTimeSpanAndPeriod(dueTime:Number, period:Number, scheduler:Scheduler):Observable {
+			if (dueTime === period) {
+				return new AnonymousObservable(function (observer:IObserver):IDisposable {
+					return scheduler.schedulePeriodicWithState(0, period, function (count:int):int {
+						observer.onNext(count);
+						return count + 1;
+					});
+				});
+			}
+			return ObservableUtil.defer(function () :Observable{
+				return observableTimerDateAndPeriod(scheduler.now() + dueTime, period, scheduler);
+			});
+		}
+		private static function observableTimerDate(dueTime:Number, scheduler:Scheduler):Observable {
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				return scheduler.scheduleWithAbsolute(dueTime, function ():void {
+					observer.onNext(0);
+					observer.onCompleted();
+				});
+			});
+		}
+		private static function observableTimerTimeSpan(dueTime:Number, scheduler:Scheduler):Observable {
+			var d:Number = Scheduler.normalize(dueTime);
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				return scheduler.scheduleWithRelative(d, function ():void {
+					observer.onNext(0);
+					observer.onCompleted();
+				});
+			});
+		}
+		public static function interval(period:Number, scheduler:Scheduler = null):Observable{
+			return observableTimerTimeSpanAndPeriod(period,period,scheduler||RFL.timeoutScheduler);
+		}
+		public static function timer(dueTime:Object, periodOrScheduler:Object, scheduler:Scheduler = null):Observable {
+			var period:Number;
+			scheduler ||= RFL.timeoutScheduler;
+			if (periodOrScheduler !=null && typeof periodOrScheduler === 'number') {
+				period = Number(periodOrScheduler);
+			} else if (periodOrScheduler !=null) {
+				scheduler = periodOrScheduler as Scheduler;
+			}
+			if (dueTime is Date && isNaN(period)) {
+				return observableTimerDate((dueTime as Date).getTime(), scheduler);
+			}
+			if (dueTime is Date && isNaN(period)) {
+				period = Number(periodOrScheduler);
+				return observableTimerDateAndPeriod((dueTime as Date).getTime(), period, scheduler);
+			}
+			if (isNaN(period)) {
+				return observableTimerTimeSpan(Number(dueTime), scheduler);
+			}
+			return observableTimerTimeSpanAndPeriod(Number(dueTime), period, scheduler);
+		}
+		
+		//flash
 		public static function fromEvent(source:IEventDispatcher,eventName:String,useCapture:Boolean = false):Observable{
 			return new AnonymousObservable(function(observer:IObserver):IDisposable{
 				source.addEventListener(eventName,observer.onNext,useCapture);
 				return Disposable.create(function():void{
 					source.removeEventListener(eventName,observer.onNext,useCapture);
 				});
+			});
+		}
+		public static function fromEnterFrame(displayObject:DisplayObject,interval:uint = 0):Observable{
+			if(interval>0)
+				return fromEvent(displayObject,Event.ENTER_FRAME).windowWithCount(1,interval);
+			return fromEvent(displayObject,Event.ENTER_FRAME);
+		}
+		public static function fromBinding(host:Object,chain:Object):Observable{
+			return new AnonymousObservable(function(observer:IObserver):IDisposable{
+				var watcher:ChangeWatcher = BindingUtils.bindSetter(observer.onNext,host,chain);
+				return Disposable.create(watcher.unwatch);
 			});
 		}
 	}

@@ -1,5 +1,8 @@
 package reactivefl.concurrency
 {
+	import flash.utils.clearInterval;
+	import flash.utils.setInterval;
+	
 	import reactivefl.RFL;
 	import reactivefl.disposables.CompositeDisposable;
 	import reactivefl.disposables.Disposable;
@@ -61,9 +64,47 @@ package reactivefl.concurrency
 		public function scheduleWithRelativeAndState(state:*, dueTime:Number, action:Function):IDisposable{
 			return _scheduleRelative(state, dueTime, action);
 		}
+		public function scheduleWithAbsoluteAndState(state:*, dueTime:Number, action:Function):IDisposable {
+			return this._scheduleAbsolute(state, dueTime, action);
+		};
+		public function scheduleRecursiveWithAbsolute(dueTime:Number, action:Function):IDisposable {
+			return this.scheduleRecursiveWithAbsoluteAndState(action, dueTime, function (_action:Function, self:Function):void {
+				_action(function (dt:Number):void {
+					self(_action, dt);
+				});
+			});
+		};
+		public function scheduleRecursiveWithAbsoluteAndState(state:*, dueTime:Number, action:Function):IDisposable {
+			return this._scheduleAbsolute({ first: state, second: action }, dueTime, function (s:Scheduler, p:Pair):CompositeDisposable {
+				return invokeRecDate(s, p, scheduleWithAbsoluteAndState);
+			});
+		};
 		private function invokeAction(scheduler:Scheduler, action:Function):IDisposable {
 			action();
 			return Disposable.empty;
+		}
+		private function invokeRecDate(scheduler:Scheduler, pair:Pair, method:Function):CompositeDisposable {
+			var state:* = pair.first, action:Function = pair.second, group:CompositeDisposable = new CompositeDisposable(),
+				recursiveAction:Function = function (state1:*):void {
+					action(state1, function (state2:*, dueTime1:Number) :void{
+						var isAdded:Boolean = false, isDone:Boolean = false,
+						d:IDisposable = method( state2, dueTime1, function (scheduler1:Scheduler, state3:*):IDisposable {
+							if (isAdded) {
+								group.remove(d);
+							} else {
+								isDone = true;
+							}
+							recursiveAction(state3);
+							return Disposable.empty;
+						});
+						if (!isDone) {
+							group.add(d);
+							isAdded = true;
+						}
+					});
+				};
+			recursiveAction(state);
+			return group;
 		}
 		private function invokeRecImmediate(scheduler:Scheduler, pair:Pair) :CompositeDisposable{
 			var state:* = pair.first, action:Function = pair.second, group:CompositeDisposable = new CompositeDisposable(),
@@ -87,6 +128,20 @@ package reactivefl.concurrency
 				};
 			recursiveAction(state);
 			return group;
+		}
+		
+		public function schedulePeriodicWithState(state:*, period:Number, action:Function):IDisposable {
+			var s:* = state, id:uint = setInterval(function ():void {
+				s = action(s);
+			}, period);
+			return Disposable.create(function ():void {
+				clearInterval(id);
+			});
+		}
+		
+		public function scheduleWithRelative(dueTime:Number, action:Object):IDisposable
+		{
+			return this._scheduleRelative(action, dueTime, invokeAction);
 		}
 	}
 }

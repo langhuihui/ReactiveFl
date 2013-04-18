@@ -2,6 +2,7 @@ package reactivefl
 {
 	import reactivefl.concurrency.CurrentThreadScheduler;
 	import reactivefl.concurrency.ImmediateScheduler;
+	import reactivefl.concurrency.TimeoutScheduler;
 	import reactivefl.core.AnonymousObservable;
 	import reactivefl.core.Observable;
 	import reactivefl.disposables.CompositeDisposable;
@@ -46,11 +47,15 @@ package reactivefl
 		}
 		private static var _immediateScheduler:ImmediateScheduler;
 		public static function get immediateScheduler():ImmediateScheduler{
-			return _immediateScheduler||=new ImmediateScheduler();
+			return _immediateScheduler ||= new ImmediateScheduler();
 		}
 		private static var _currentThreadScheduler:CurrentThreadScheduler;
 		public static function get currentThreadScheduler():CurrentThreadScheduler{
-			return  _currentThreadScheduler||= new CurrentThreadScheduler();
+			return  _currentThreadScheduler ||= new CurrentThreadScheduler();
+		}
+		private static var _timeoutThreadScheduler:TimeoutScheduler;
+		public static function get timeoutScheduler():TimeoutScheduler{
+			return  _timeoutThreadScheduler ||= new TimeoutScheduler();
 		}
 	}
 }

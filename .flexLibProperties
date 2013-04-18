@@ -31,6 +31,8 @@
     <classEntry path="reactivefl.core.ObservableUtil"/>
     <classEntry path="reactivefl.argsOrArray"/>
     <classEntry path="reactivefl.core.GroupedObservable"/>
+    <classEntry path="reactivefl.concurrency.TimeoutScheduler"/>
+    <classEntry path="reactivefl.vo.ValueWithInterval"/>
   </includeClasses>
   <includeResources/>
   <namespaceManifests/>

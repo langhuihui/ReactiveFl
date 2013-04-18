@@ -5,12 +5,14 @@ package reactivefl.core
 	import reactivefl.disposables.CompositeDisposable;
 	import reactivefl.disposables.Disposable;
 	import reactivefl.disposables.RefCountDisposable;
+	import reactivefl.disposables.SerialDisposable;
 	import reactivefl.disposables.SingleAssignmentDisposable;
 	import reactivefl.i.IDisposable;
 	import reactivefl.i.IObservable;
 	import reactivefl.i.IObserver;
 	import reactivefl.internals.Enumerable;
 	import reactivefl.subjects.Subject;
+	import reactivefl.vo.ValueWithInterval;
 	
 	public class Observable implements IObservable
 	{
@@ -792,6 +794,54 @@ package reactivefl.core
 		//experimental
 		public function doWhile(condition:Function):Observable {
 			return ObservableUtil.concat([this, ObservableUtil.whileDo(condition, this)]);
+		}
+		//time
+		public function throttle(dueTime:Number, scheduler:Scheduler):Observable {
+			scheduler ||= RFL.timeoutScheduler;
+			return new AnonymousObservable(function (observer:IObserver):IDisposable {
+				var cancelable:SerialDisposable = new SerialDisposable(), 
+				hasvalue:Boolean = false, id:int = 0, subscription:IDisposable, value:* = null;
+				subscription = subscribe(function (x:*):void {
+					var currentId:int, d:SingleAssignmentDisposable;
+					hasvalue = true;
+					value = x;
+					id++;
+					currentId = id;
+					d = new SingleAssignmentDisposable();
+					cancelable.disposable(d);
+					d.disposable(scheduler.scheduleWithRelative(dueTime, function () :void{
+						if (hasvalue && id === currentId) {
+							observer.onNext(value);
+						}
+						hasvalue = false;
+					}));
+				}, function (exception:Error):void {
+					cancelable.dispose();
+					observer.onError(exception);
+					hasvalue = false;
+					id++;
+				}, function ():void {
+					cancelable.dispose();
+					if (hasvalue) {
+						observer.onNext(value);
+					}
+					observer.onCompleted();
+					hasvalue = false;
+					id++;
+				});
+				return new CompositeDisposable(subscription, cancelable);
+			});
+		}
+		public function timeInterval(scheduler:Scheduler):Observable {
+			scheduler ||= RFL.timeoutScheduler;
+			return ObservableUtil.defer(function () :Observable{
+				var last:Number = scheduler.now();
+				return select(function (x:*):Object {
+					var now:Number = scheduler.now(), span:Number = now - last;
+					last = now;
+					return new ValueWithInterval(x,span);
+				});
+			});
 		}
 	}
 }
