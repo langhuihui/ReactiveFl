@@ -5,10 +5,10 @@ package reactivefl.core
 		public var hasValue:Boolean;
 		private var _accept:Function;
 		private var _acceptObservable:Function;
-		private var value:*;
-		private var exception:Error;
-		private var kind:String;
-		private var toString:Function;
+		public var value:*;
+		public var exception:Error;
+		public var kind:String;
+		public var toString:Function;
 		public function Notification(kind:String,hasValue:Boolean = false)
 		{
 			this.hasValue = hasValue;

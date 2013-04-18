@@ -44,7 +44,7 @@ package reactivefl.core
 				return result.subscribe(observer);
 			});
 		}
-		public static function fromArray(array:Array, scheduler:Scheduler):Observable{
+		public static function fromArray(array:Array, scheduler:Scheduler = null):Observable{
 			scheduler ||= RFL.currentThreadScheduler;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
 				var count:int = 0;
