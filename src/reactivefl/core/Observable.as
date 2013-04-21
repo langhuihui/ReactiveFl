@@ -311,11 +311,12 @@ package reactivefl.core
 		public function where(predicate:Function):Observable {
 			var parent:Observable = this;
 			return new AnonymousObservable(function (observer:IObserver):IDisposable {
-				var count:int = 0;
+//				var count:int = 0;
 				return parent.subscribe(function (value:*):void {
 					var shouldRun:Boolean;
 					try {
-						shouldRun = predicate(value, count++);
+//						shouldRun = predicate(value, count++);
+						shouldRun = predicate(value);
 					} catch (exception:Error) {
 						observer.onError(exception);
 						return;
