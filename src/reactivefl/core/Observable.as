@@ -1,7 +1,5 @@
 package reactivefl.core
 {
-	import spark.core.IDisplayText;
-	
 	import reactivefl.RFL;
 	import reactivefl.concurrency.Scheduler;
 	import reactivefl.disposables.CompositeDisposable;
@@ -950,7 +948,7 @@ package reactivefl.core
 				exception:Error = null,
 				q:Vector.<ValueWithTimestamp> = new <ValueWithTimestamp>[],
 				running:Boolean = false,
-				subscription:IDisplayText = materialize().timestamp(scheduler).subscribe(function (notification:ValueWithTimestamp):void {
+				subscription:IDisposable = materialize().timestamp(scheduler).subscribe(function (notification:ValueWithTimestamp):void {
 					var d:SingleAssignmentDisposable, shouldRun:Boolean;
 					if (notification.value.kind === 'E') {
 						q  = new <ValueWithTimestamp>[notification];

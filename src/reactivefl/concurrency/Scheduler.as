@@ -75,7 +75,7 @@ package reactivefl.concurrency
 			});
 		}
 		public function scheduleRecursiveWithAbsoluteAndState(state:*, dueTime:Number, action:Function):IDisposable {
-			return this._scheduleAbsolute({ first: state, second: action }, dueTime, function (s:Scheduler, p:Pair):CompositeDisposable {
+			return this._scheduleAbsolute(new Pair( state,  action ), dueTime, function (s:Scheduler, p:Pair):CompositeDisposable {
 				return invokeRecDate(s, p, scheduleWithAbsoluteAndState);
 			});
 		}
@@ -87,7 +87,7 @@ package reactivefl.concurrency
 			});
 		}
 		public function scheduleRecursiveWithRelativeAndState(state:*, dueTime:Number, action:Function):IDisposable {
-			return this._scheduleRelative({ first: state, second: action }, dueTime, function (s:Scheduler, p:Pair):IDisposable {
+			return this._scheduleRelative(new Pair( state,  action ), dueTime, function (s:Scheduler, p:Pair):IDisposable {
 				return invokeRecDate(s, p, scheduleWithRelativeAndState);
 			});
 		}

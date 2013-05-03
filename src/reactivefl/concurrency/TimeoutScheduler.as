@@ -16,8 +16,9 @@ package reactivefl.concurrency
 		}
 		override protected function scheduleNow(state:*, action:Function):IDisposable {
 			var disposable:SingleAssignmentDisposable = new SingleAssignmentDisposable();
+			var _this:TimeoutScheduler = this;
 			var id:uint = setTimeout(function ():void {
-				disposable.setDisposable(action(this, state));
+				disposable.setDisposable(action(_this, state));
 			},0);
 			return new CompositeDisposable(disposable, Disposable.create(function () :void{
 				clearTimeout(id);
@@ -30,8 +31,9 @@ package reactivefl.concurrency
 				return scheduleWithState(state, action);
 			}
 			var disposable:SingleAssignmentDisposable = new SingleAssignmentDisposable();
+			var _this:TimeoutScheduler = this;
 			var id:uint = setTimeout(function ():void {
-				disposable.setDisposable(action(this, state));
+				disposable.setDisposable(action(_this, state));
 			}, dt);
 			return new CompositeDisposable(disposable, Disposable.create(function ():void {
 				clearTimeout(id);
